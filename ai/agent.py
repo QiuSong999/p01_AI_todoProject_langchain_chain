@@ -71,12 +71,13 @@ def ai_chat(message):
 #创建Pydantic输出解析器。作用：把AI返回的JSON结果直接解析成AIAction对象，同时按照AIAction模型检查返回的数据格式。
 
     format_instructions = parser.get_format_instructions()   #.get_format_instructions()	解析器的方法，返回一段格式说明字符串
-    # 把AIAction的格式要求生成一段文字，然后放入 Prompt，提前告诉大模型应该怎么输出。
-    #从解析器里取出"格式说明书"，一段告诉模型该按什么格式输出的文字。
+    #虽然已经告诉 Parser：“你最后要按照 AIAction 来解析和校验。”但是大模型本身并不知道AIAction这个Python类。所以需要把AIAction转给大模型听
+    #把AIAction的格式要求生成一段文字，然后放入 Prompt，提前告诉大模型应该怎么输出。
+    #其实就是从解析器里取出"格式说明书"，一段告诉模型该按什么格式输出的文字。
     """
     注意与上面pydantic_object=AIAction的作用的区别：
     
-    代码	                                作用	              对象
+    代码	                                作用	               对象
     pydantic_object=AIAction	定义解析规则、校验规则	      Parser
     format_instructions	        生成输出格式提示，让AI遵守	  大模型
     ~~~~~
@@ -118,7 +119,6 @@ def ai_chat(message):
          ↓
     AIAction对象
     """
-
 
 
 

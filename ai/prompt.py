@@ -111,8 +111,7 @@ def search_prompt():
 def search_user_prompt():
     # ⭐这里不直接接收message和now_time。因为LangChain的设计是：先创建模板 → 后面调用填充真实数据。
     return ChatPromptTemplate.from_messages([
-        (
-            "human",
+        ("human",
             """
             你是一个Todo查询助手。
 

@@ -49,7 +49,10 @@ def parse_ai_search_arguments(tool_call):
         arguments = tool_call["args"]
         #LangChain的LangChain已经自动把AI生成的工具参数解析成Python字典。例如：{"title":"牛肉","page":1,"page_size":10}
 
-        return AITodoSearch(**arguments)    # 使用Pydantic校验AI生成的查询参数。
+        return AITodoSearch(**arguments)    # 使用Pydantic中的AITodoSearch校验AI生成的查询参数。
+                                            #**arguments 是把字典拆成关键字参数。
+    # 原来arguments = {"title": "牛奶","page": 1,"page_size": 10}，经过**arguments变成
+    # AITodoSearch(title="牛奶",page=1,page_size=10)
 
     except ValidationError as e:
         #如果AI生成的参数不符合AITodoSearch定义，Pydantic会抛出ValidationError。
@@ -124,10 +127,9 @@ def execute_search_tool(tool_call):
     search_data = parse_ai_search_arguments(tool_call)  #利用###1定义的函数，解析AI生成的工具参数
     #LangChain已经把工具参数转换成Python字典。这里通过AITodoSearch(**arguments)，把字典转换成Pydantic对象，并校验参数格式。
 
-
     #工具1
     if tool_name == "search_todos_by_title":    #如果是根据title查询相关数据
-
+        # ⭐⭐下面的Tool.invoke() = 执行工具；LLM.invoke() = 调用模型；Prompt.invoke() = 填充模板
         return search_todos_by_title.invoke(    #search_todos_by_title：根据title查询数据的函数（工具1）
             {
                 "title": search_data.title,     #search_data为AITodoSearch对象
@@ -189,6 +191,7 @@ def execute_search_tool(tool_call):
 
 ## 1.3 整理数据库查询结果函数
 def format_search_result(query_result):
+    # query_result 就是：410行代码，即真正执行查询工具后得到的结果，传达该函数中
     """
     整理数据库查询结果。
 
@@ -229,6 +232,8 @@ def format_search_result(query_result):
 ### 2、AI工具选择函数
 # 作用：第一次调用AI，让AI根据用户需求选择应该执行哪个工具，并生成工具参数
 def ask_deepseek_tool(messages):  # 让AI选择工具
+    # 这里的message是343行代码，已经准备好的聊天消息，其中
+    # SystemMessage：告诉AI有哪些查询工具，以及每个工具什么时候使用 ； HumanMessage：用户真正的查询要求
     """
     第一次调用 DeepSeek。
     作用：
@@ -248,7 +253,7 @@ def ask_deepseek_tool(messages):  # 让AI选择工具
         Python执行对应函数
     """
     try:
-        llm_with_tools = llm.bind_tools(ai_tools)       #大模型 + 可使用的工具
+        llm_with_tools = llm.bind_tools(ai_tools)       # 普通AI + 可使用的工具 = 具有工具调用能力的AI
         #.bind_tools()是LangChain提供的方法。作用：把查询工具告诉大模型，让AI可以选择调用哪个工具。
         response = llm_with_tools.invoke(messages)      #LangChain统一使用invoke()调用模型。
         # 把问题和工具一起打包发给DeepSeek，让AI来做“选择题”——判断需不需要用工具、用哪个工具、以及提取什么参数。
@@ -256,8 +261,8 @@ def ask_deepseek_tool(messages):  # 让AI选择工具
 
         return response
         # 返回AI生成的消息对象。里面可能包含：
-        # 1.content 普通回答
-        # 2.tool_calls AI选择的工具
+        # .content 普通回答
+        # .tool_calls AI选择的工具
 
     except Exception as e:
         print("ai service error:", e)
@@ -312,14 +317,22 @@ def searchtodo_by_AI(message):
     now_time = datetime.now()
 
     # 使用ChatPromptTemplate.invoke()给模板传入真实参数返回LangChain标准HumanMessage对象
-    search_user_message = search_user_prompt().invoke(
-        {"now_time": now_time,
+    search_user_message = search_user_prompt().invoke(      #search_user_prompt()：查询用户Prompt模板（未填充，含占位符）
+        {"now_time": now_time,                              #.invoke({...}) ：把真实数据填入 Prompt 模板
          "message": message}
-        ).messages[0]       #由 search_user_prompt()生成的 HumanMessage 对象
-    #这一步的提示词是让AI理解用户输入的今天，昨天，明天等词汇，下面的是告诉AI如何根据用户输入的话选择相应的工具执行
-    """
+        ).messages[0]
+    # 改提示词是让AI理解用户输入的今天，昨天，明天等词汇，下面的是告诉AI如何根据用户输入的话选择相应的工具执行
+    """上面转换流程
+    ChatPromptTemplate
+    ↓ invoke()
+    ChatPromptValue
+    ↓.messages
+    list[BaseMessage]
+    ↓ [0]
+    HumanMessage / SystemMessage
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
        变量	                        是什么
-    search_user_prompt()	    用户提示词模板
+    search_user_prompt()	    用户提示词模板（把当前时间和用户的问题传给AI，帮助AI理解“今天、明天、后天”等时间表达）
     invoke()	                给模板填真实参数
     .messages[0]	            取出生成的第一条消息
     search_user_message	        最终得到的 HumanMessage
@@ -327,13 +340,15 @@ def searchtodo_by_AI(message):
 
     system_message = search_prompt().invoke({}).messages[0]     #search_prompt() 里面没有变量。故invoke内传了个{}
     #search_prompt()模板告诉AI：你有哪些查询工具，用户提出查询需求时应该选择哪个工具。
-    # 使用ChatPromptTemplate.invoke()生成LangChain标准SystemMessage对象
+    # invoke()执行后返回ChatPromptValue对象。
+    # .messages取出ChatPromptValue里面的消息列表  ；  [0]取出第一个消息，因为这里的第一个消息是SystemMessage。
+    # 最终system_message保存的是LangChain标准SystemMessage对象。
 
     # 第一次调用AI的消息列表这里直接使用invoke生成的Message对象,不需要再次包装SystemMessage和HumanMessage
     messages = [
-        system_message,         # SystemMessage：查询规则
+        system_message,         # SystemMessage：查询规则（告诉AI：你有哪些查询工具，用户提出查询需求时应该选择哪个工具。）
         search_user_message     # HumanMessage：用户查询内容
-        ]
+        ]       #上面System和Human两个message构成完整的提示词
 
     result = ask_deepseek_tool(messages)  #执行AI工具选择函数。 上面message填充后作为参数传给ask_deepseek_tool，即。
     # 调用ask_deepseek_tool —— AI工具选择函数。第一次调用AI.目的：让AI根据用户需求选择工具。
@@ -392,7 +407,7 @@ def searchtodo_by_AI(message):
 
     # -------------根据AI选择的工具执行不同函数-------------
     #把第一次 AI 返回的工具调用信息传给 execute_search_tool()，由这个函数根据 AI 选择的工具执行对应的函数对数据库查询，并返回查询结果。
-    query_result = execute_search_tool(tool_call)   #真正的查询动作
+    query_result = execute_search_tool(tool_call)       #真正的查询动作
     """
     execute_search_tool()会根据tool_call中的工具名称：
         1. 判断AI选择的是哪个查询工具
@@ -426,7 +441,7 @@ def searchtodo_by_AI(message):
 
     # 创建工具执行结果消息，Python执行AI选择的工具后，把查询数据库的结果包装成 AI 能理解的tool消息。
     tool_message = ToolMessage(
-        content=str(search_result),     #工具返回的数据。
+        content=str(search_result),     #工具返回的数据。（把 Python 对象转换成字符串）
         tool_call_id=tool_call["id"]
     )
     # 把执行数据库查询的结果，包装成AI能读懂的"工具返回消息"，好在第二次调用AI时喂给它
