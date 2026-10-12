@@ -216,6 +216,7 @@ class AITodoUpdate(BaseModel):      #用户可能只修改deadline/status，也�
     title: str = Field(min_length=1)	字段级	只影响 title 这一个字段
     model_config = ConfigDict(...)	    模型级	影响整个模型（所有字段）
     """
+    title: str | None = None
     deadline:datetime | None = None     #deadline 可以有，也可以没有。
     status: Literal["pending", "completed"] | None = None           #status 可以有，也可以没有。
 # 如果 extra="ignore"（默认）：这些多余字段被静默丢弃，你根本不知道 AI"乱返回"了。

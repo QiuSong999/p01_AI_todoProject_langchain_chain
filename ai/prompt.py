@@ -1,20 +1,24 @@
 """各种prompt"""
 """
-
 LangChain Prompt模板。
 作用：
     管理发送给大模型的提示词。
 
-主要类型：
-
-ChatPromptTemplate:
-    用于聊天模型。
-    可以生成：
-        SystemMessage
-        HumanMessage
-
-PromptTemplate:
-    用于普通字符串模板。
+主要类型：⭐
+    1、PromptTemplate:
+        用于普通字符串模板。
+    2、ChatPromptTemplate:
+        用于聊天模型。
+        可以生成：
+            SystemMessage
+            HumanMessage
+核心区别
+维度	            PromptTemplate	                     ChatPromptTemplate
+输出类型	    StringPromptValue（本质是字符串）	     ChatPromptValue（消息列表）
+输入给模型	补全式模型（completion）	                对话式模型（chat）
+消息角色	    ❌ 无角色概念	                       ✅ system / human / ai 等角色
+典型模型	    老式 GPT-3、text-davinci	           GPT-4o、Claude、DeepSeek、Qwen 等
+格式化结果	    一个字符串	                   [SystemMessage, HumanMessage, ...]
 """
 
 from langchain_core.prompts import ChatPromptTemplate,PromptTemplate
@@ -35,7 +39,7 @@ PromptTemplate：用于普通字符串Prompt模板。
 # {message}：变量占位符，调用模板时再填入真实用户输入。
 #模板中预留 {message} 变量,真正的用户输入会在调用模板时传入。
 def intent_prompt():     #创建一个LangChain提示词模板对象
-    return ChatPromptTemplate.from_messages([
+    return ChatPromptTemplate.from_messages([   #ChatPromptTemplate 提示词模板对象
         ("system",              #system消息：告诉AI应该做什么
         """
         你是一个todo助手。
@@ -198,14 +202,16 @@ def update_prompt():
     return ChatPromptTemplate.from_messages([
         ("system",      #system消息：告诉AI身份、任务规则以及输出要求。
             """
-            你是一个todo修改助手。
             请根据用户要求，提取需要修改的todo字段。
-            
+            只返回json格式，不要返回Markdown代码块。
             可以修改的字段：
+
             title:
-            任务名称
+            任务名称。用户要求修改任务名称时，必须返回修改后的完整标题。
+
             deadline:
-            任务截止时间
+            任务截止时间，格式必须为YYYY-MM-DD HH:MM:SS
+
             status:
             任务状态，只能是pending或者completed
 
@@ -213,6 +219,15 @@ def update_prompt():
             1. 用户没有要求修改的字段，不要返回。
             2. 不要返回解释。
             3. deadline需要根据当前时间理解“今天、明天、下午”等时间表达。
+            4. 用户要求将一个任务名称改成另一个名称时， 必须将新名称放入title字段，而不是返回旧名称。 
+            5. 不要自行补充用户没有要求修改的字段。
+
+            示例1： 用户要求：把买牛奶改成买咖啡 
+            返回： {{"title": "买咖啡"}} 
+            示例2： 用户要求：把买牛奶的状态改成已完成 
+            返回： {{"status": "completed"}} 
+            示例3： 用户要求：把买牛奶改成买咖啡，并标记为已完成 
+            返回： {{"title": "买咖啡", "status": "completed"}}
 
             当前时间：
             {now_time}

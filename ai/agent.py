@@ -66,6 +66,7 @@ def ai_chat(message):
     #获取意图识别的ChatPromptTemplate模板，这里只创建模板，不填充用户输入。{message}会在chain.invoke()时自动替换。
     #chain = prompt | llm | parser中的prompt也不是最终提示词，它是一个可执行组件 Runnable。
 
+#⭐PydanticOutputParser():“强制大模型按你规定的格式（传参ydantic_object=自定义的格式）输出数据，并自动帮你转换成 Python 对象”
     parser = PydanticOutputParser(
         pydantic_object=AIAction)     #"pydantic_object="是告诉 Parser：按照 AIAction 这个模型规则解析和校验大模型输出。
 #创建Pydantic输出解析器。作用：把AI返回的JSON结果直接解析成AIAction对象，同时按照AIAction模型检查返回的数据格式。
@@ -88,11 +89,11 @@ def ai_chat(message):
     chain = prompt | llm | parser
     # 创建LCEL Chain，执行流程: ChatPromptTemplate → ChatOpenAI → PydanticOutputParser
 
-    action = chain.invoke(      #执行chain
+    action = chain.invoke(      #执行chain。传的参数是intent_prompt()里面的变量占位符
         {"message": message,
     #左边的 "message"对应Prompt 模板（intent_prompt()）里面的占位符。右边的 message：这个是 ai_chat() 函数接收到的真实参数。
          "format_instructions": format_instructions}  #左边的"format_instructions"对应Prompt 模板（intent_prompt()）里面的占位符
-        #右边的format_instructions，是由format_instructions = parser.get_format_instructions()得到
+        #右边的format_instructions，是由上面代码format_instructions = parser.get_format_instructions()得到
     )
     """
     执行Chain。

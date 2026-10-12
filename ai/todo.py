@@ -1,4 +1,19 @@
 """AI操作单个Todo数据的业务逻辑: AI新增/修改/删除"""
+"""
+功能          V3 的主要实现方式                    AI 处理后的结果     
+新增             LCEL Chain                    TodoAdd 等结构化对象     
+修改             LCEL Chain                    AITodoUpdate 等结构化对象     
+删除             LCEL Chain                        相应的结构化结果     
+查询       Tool Calling + 手动消息管理       查询工具执行结果，再生成自然语言回答     
+
+Chain 和 Tool Calling 并不是互相排斥的两种技术。 Chain 是组织处理步骤的方式；
+Tool Calling 是让模型选择工具、生成调用参数的机制。理论上，二者可以组合使用
+本版本“增删改”为chain格式，而“查”仍然是Tool Calling格式
+
+增删改主要是让 AI 提取结构化数据，再由 Python 执行业务操作。因此，Chain 很适合这种相对固定的处理流程：
+查询不仅要提取查询条件，还要决定调用哪个工具。 保留原来不改为Chain
+两类任务的处理方式不同
+"""
 
 from ai.client import llm
 from db import (
@@ -62,8 +77,8 @@ def match_todo_id_by_AI(message):
     chain = prompt | llm | parser
     # LCEL链：Prompt  → DeepSeek  →  Pydantic解析 →  最终得到AITodoMatch对象
 
-    result = chain.invoke(
-        {"message": message,         # 用户自然语言需求
+    result = chain.invoke(          #★传入的参数是match_todo_prompt()提示词模板中的变量
+        {"message": message,        # 用户自然语言需求
         "todos": todos,             # 数据库已有Todo列表
         "format_instructions": format_instructions      # 告诉AI返回格式
         } )
@@ -87,7 +102,7 @@ def addtodo_by_AI(message):
         chain = prompt | llm | parser           # 创建LCEL Chain
         # 执行流程：PromptTemplate → ChatOpenAI(llm) → PydanticOutputParser →  TodoAdd对象
 
-        todo = chain.invoke(
+        todo = chain.invoke(         #★传入的参数是add_prompt()提示词模板中的变量
             {"now_time": now_time,   #对应add_prompt()中的{now_time}： 用于让AI理解“今天、明天”等时间表达。
              "message": message,     # 对应add_prompt()中的{message}：用户输入的自然语言，例如："明天上午10点提醒我买牛奶"
 
@@ -161,7 +176,7 @@ def updatetodo_by_AI(message):
         # 执行流程：ChatPromptTemplate → ChatOpenAI(llm) → PydanticOutputParser → AITodoUpdate对象
 
         todo = chain.invoke(
-            {"now_time": now_time,   # 对应update_prompt()中的{now_time}，用于理解今天、明天等时间表达。
+            {"now_time": now_time,   # 对应update_prompt()提示词模板中的{now_time}，用于理解今天、明天等时间表达。
               "message": message,    # 对应update_prompt()中的{message}，用户输入的修改要求。
 
 
@@ -199,6 +214,13 @@ def updatetodo_by_AI(message):
                 detail="todo not found"
             )
 
+        # 如果 AI 提取出了新title，就使用新title；否则保留数据库原来的标题
+        title = (
+            todo.title  # todo为AI提取出来的，并经过AITodoUpdate检验过的“修改的字段” —— 对象
+            if todo.title is not None  # 判断字段是否提供了新值
+            else todo_data["title"]  # todo_data为原始待修改的数据
+        )
+
         # 如果AI返回了新的status，就使用AI的；如果AI没有返回status，就保留数据库原来的status
         status = (
             todo.status
@@ -216,6 +238,7 @@ def updatetodo_by_AI(message):
         # 根据数据库真实id修改数据
         result = update_all(        #update_all()返回修改了几条数据
             todo_data["id"],
+            title,
             status,
             deadline
         )

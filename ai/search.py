@@ -9,8 +9,6 @@ SystemMessage:已经由ChatPromptTemplate.invoke()自动生成，不需要手动
 HumanMessage:已经由ChatPromptTemplate.invoke()自动生成，不需要手动导入。
 """
 
-
-
 # 从 tools 模块导入 AI 查询工具函数
 # 这些函数是真正执行数据库查询的业务工具
 from ai.tools import (          #从 ai.tools 模块导入AI查询Todo时使用的5个工具函数。
