@@ -7,7 +7,8 @@ from ai.prompt import intent_prompt     #从ai.prompt模块导入意图识别提
 # intent_prompt()负责创建“判断用户操作(add/update/delete/search)”的PromptTemplate模板。
 
 from langchain_core.output_parsers import PydanticOutputParser
-# 导入PydanticOutputParser。作用：把AI返回的JSON结果直接解析并验证成Pydantic对象。
+# 导入PydanticOutputParser。
+# 作用：强制大语言模型（LLM）返回符合你预先定义好的 Pydantic 模型结构的数据，从而确保输出是结构化、类型安全且经过校验的
 
 
 from schema import AIAction     # AIAction是我们定义的意图识别输出结果模板。
@@ -105,7 +106,6 @@ def ai_chat(message):
     #如用户输入message为"明天上午提醒我买牛奶"，最终返回的是 ：action="add",content="明天上午提醒我买牛奶"
     #action数据类型为：<class 'schema.AIAction'>
     """
-    
     AIAction模型(schema.py)
          ↓
     PydanticOutputParser
@@ -121,8 +121,7 @@ def ai_chat(message):
     AIAction对象
     """
 
-
-
+#==============================================================
 ### 2、AI总入口函数
 def todo_by_AI(message):
     action = ai_chat(message)   #调用意图识别函数。AI判断意图，得出用户想操作的动作（增/删/改/查），并返回AIAction对象。

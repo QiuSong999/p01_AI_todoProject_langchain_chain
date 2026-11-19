@@ -26,6 +26,8 @@ FastAPI 返回给用户
 不是接口数据
     ↓
 只是校验大模型输出是否合法
+~~~~~~~~~
+④@tool工具所需要的参数模板
 """
 """
 schema.py
@@ -45,11 +47,17 @@ schema.py
 │   ├── MessageResponse
 │   └── CountResponse
 │
-└── ③ AI内部模型
-    ├── AIAction
-    ├── AITodoSearch
-    ├── AITodoUpdate
-    └── AITodoMatch
+├── ③ AI内部模型
+│    ├── AIAction
+│    ├── AITodoSearch
+│    ├── AITodoUpdate
+│    └── AITodoMatch
+│
+└── ④ LangChain Tool参数模型
+    ├── SearchTodoByTitleInput
+    ├── SearchAllTodosInput
+    ├── SearchTodoByStatusInput
+    └── SearchTodoByDeadlineInput
 """
 
 
@@ -251,6 +259,85 @@ class AITodoMatch(BaseModel):
     """
     id: int         # 数据库中目标Todo的唯一编号。
 
+#=========================================================================================
+
+
+### 16、LangChain Tool参数模型
+# 专门用于定义LangChain查询工具需要接收的参数
+# 通过 @tool(args_schema=模型类) 绑定到对应工具
+
+
+### 16.1、根据title查询的参数模型
+class SearchTodoByTitleInput(BaseModel):
+    title: str = Field(
+        min_length=1,
+        description="Todo标题关键词，例如Python"
+    )
+    page: int = Field(
+        default=1,
+        ge=1,
+        description="查询页码，必须大于等于1"
+    )
+    page_size: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        description="每页查询数量，范围为1到100"
+    )
+
+
+### 16.2、查询所有Todo的参数模型
+class SearchAllTodosInput(BaseModel):
+    page: int = Field(
+        default=1,
+        ge=1,
+        description="查询页码，必须大于等于1"
+    )
+    page_size: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        description="每页查询数量，范围为1到100"
+    )
+
+
+### 16.3、根据status查询的参数模型
+class SearchTodoByStatusInput(BaseModel):
+    status: Literal["pending", "completed"] = Field(
+        description="任务状态，只能是pending（未完成）或completed（已完成）"
+    )
+    page: int = Field(
+        default=1,
+        ge=1,
+        description="查询页码，必须大于等于1"
+    )
+    page_size: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        description="每页查询数量，范围为1到100"
+    )
+
+
+### 16.4、根据deadline查询的参数模型
+class SearchTodoByDeadlineInput(BaseModel):
+    start_time: datetime = Field(
+        description="截止时间范围的开始时间"
+    )
+    end_time: datetime = Field(
+        description="截止时间范围的结束时间"
+    )
+    page: int = Field(
+        default=1,
+        ge=1,
+        description="查询页码，必须大于等于1"
+    )
+    page_size: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        description="每页查询数量，范围为1到100"
+    )
 
 
 """
@@ -276,21 +363,32 @@ HTTPValidationError 、ValidationError 这两个没定义的模板呢？
 """
 模板                     类型
 
-TodoResponse            返回
-TodoPageResponse        返回
-AITodoPageResponse      返回
-MessageResponse         返回
-CountResponse           返回
+① API响应模型
+TodoResponse              返回
+TodoPageResponse          返回
+AITodoPageResponse        返回
+MessageResponse           返回
+CountResponse             返回
 
-TodoAdd                 上传
-AITodoAdd               上传
-TodoUpdate              上传
-AITodoUpdateRequest     上传
-AITodoDelete            上传
+② API请求模型
+TodoAdd                   上传
+AITodoAdd                 上传
+TodoUpdate                上传
+AITodoUpdateRequest       上传
+AITodoDelete              上传
 
-AIAction                AI内部意图判断
-AITodoSearch            AI内部查询参数校验
-AITodoUpdate            AI内部修改字段校验
-AITodoMatch             AI内部目标id校验
+③ AI内部模型
+AIAction                  AI内部意图判断
+AITodoSearch              AI内部查询参数校验
+AITodoUpdate              AI内部修改字段校验
+AITodoMatch               AI内部目标id校验
+
+④ LangChain Tool参数模型
+SearchTodoByTitleInput    Tool参数校验
+SearchAllTodosInput       Tool参数校验
+SearchTodoByStatusInput   Tool参数校验
+SearchTodoByDeadlineInput Tool参数校验
+
+AITodoSearch              复合查询Tool参数模型（复用）
 """
 

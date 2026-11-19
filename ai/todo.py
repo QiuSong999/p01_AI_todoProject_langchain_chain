@@ -66,7 +66,6 @@ def match_todo_id_by_AI(message):
 
     prompt = match_todo_prompt()    # 创建匹配Todo的Prompt模板。
 
-
     parser = PydanticOutputParser(
         pydantic_object=AITodoMatch)
     # 创建Pydantic解析器。要求AI返回：{ "id": 数字}
@@ -85,7 +84,7 @@ def match_todo_id_by_AI(message):
 
     return result.id        # 返回匹配到的Todo id
 
-
+#======================================================================================
 
 ### 1、定义AI添加 Todo/数据 的业务函数
 def addtodo_by_AI(message):
@@ -108,7 +107,7 @@ def addtodo_by_AI(message):
 
              "format_instructions": format_instructions  #对应add_prompt()中的{format_instructions},
                                 # 将PydanticOutputParser根据TodoAdd模型生成的格式要求传入Prompt，用于约束大模型输出结构。
-            } )
+            } ) #⭐todo返回的是TodoAdd对象，即提取到的要添加事项的字段
 
         new_id = add_todo(todo.title, todo.deadline)     #添加到数据库（上行代码创建的TodoAdd对象可以通过.的方式来取响应的值）
         return get_todo_id(new_id)      #返回新增后的完整数据
@@ -183,6 +182,7 @@ def updatetodo_by_AI(message):
               "format_instructions": format_instructions
               # 对应update_prompt()中的{format_instructions}将AITodoUpdate格式要求传给大模型。
             } )
+        # ⭐返回AITodoUpdate对象，里面保存AI从用户自然语言中提取出的待修改字段及其新值。
         """
         第一次 AI 流程:
             用户：把买牛奶改成完成
@@ -203,6 +203,7 @@ def updatetodo_by_AI(message):
         # 第二次调用AI：作用：根据用户描述 + 数据库已有todo列表，找到用户真正想修改的是哪一条数据
         # 根据用户描述，AI匹配目标Todo id
         todo_id = match_todo_id_by_AI(message)      #match_todo_id_by_AI为AI匹配Todo id的公共辅助函数
+        #在match_todo_id_by_AI()中已经校验过输入的内容是否满足AITodoMatch
 
         # 根据AI找到的id，利用查询数据函数找到对应的数据
         todo_data = get_todo_id(todo_id)    #返回找到的数据
@@ -334,7 +335,6 @@ def deletetodo_by_AI(message):
 
 """
 AI删除Todo流程：
-
     用户自然语言
         ↓
     deletetodo_by_AI()
